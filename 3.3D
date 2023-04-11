@@ -1,0 +1,78 @@
+// This #include statement was automatically added by the Particle IDE.
+#include <BH1750.h>
+#include "MQTT.h"
+
+BH1750 sensor(0x23, Wire);
+void callback(char* topic, byte* payload, unsigned int length);
+MQTT client("broker.emqx.io", 1883, callback);
+
+// recieve message
+void callback(char* topic, byte* payload, unsigned int length) {
+    Serial.println(topic);
+    char p[length + 1];
+    memcpy(p, payload, length);
+    p[length] = NULL;
+    Serial.println(p);
+    if (!strcmp(p, "wave"))
+        {
+        digitalWrite(D7, HIGH);
+        delay(100);
+        digitalWrite(D7, LOW);
+        delay(100);
+        digitalWrite(D7, HIGH);
+        delay(100);
+        digitalWrite(D7, LOW);
+        delay(100);
+        digitalWrite(D7, HIGH);
+        delay(100);
+        digitalWrite(D7, LOW);
+        delay(100);
+        }
+    else if (!strcmp(p, "pat"))
+        {
+        digitalWrite(D7, HIGH);
+        delay(1000);
+        digitalWrite(D7, LOW);
+        }
+    delay(1000);
+}
+
+void setup() {
+    //start serial com
+    Serial.begin(9600); // initialize serial communication at 9600 bits per second
+    //setup board leds
+    pinMode(D7, OUTPUT);
+    digitalWrite(D7, LOW);
+    RGB.control(true);
+    //setup light sensor
+    sensor.begin();
+    sensor.set_sensor_mode(BH1750::forced_mode_high_res2);
+    // connect to the server
+    client.connect("57");
+    // publish/subscribe
+    if (client.isConnected()) {
+        client.publish("SIT210/wave","connected");
+        Serial.print("connected");
+        client.subscribe("SIT210/wave/#");
+    }
+}
+
+void sensorLoop()
+{
+  sensor.make_forced_measurement();
+  Serial.println(String::format("%f", sensor.get_light_level()));
+  if(sensor.get_light_level() < 450)
+  {
+      client.publish("SIT210/wave","Tom");
+      Serial.println("[PUBLISHED]: Tom");
+  }
+  delay(1000);
+}
+
+void loop() {
+    if (client.isConnected())
+    {
+        client.loop();
+        sensorLoop();
+    }
+}
